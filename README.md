@@ -50,7 +50,7 @@ This repo is intentionally structured to reflect the kind of work I’d like to 
 - Pattern for cost observability
 - Good candidate for CloudWatch Logs Insights + ETL
 
-### 3. `devops-utility-lambdas/` (skeleton)
+### 3. [cost-per-transaction-pipeline](./devops-utility-lambdas)
 
 > Small, focused Lambdas that automate operational work (tag enforcement, drift detection, notifications).
 
