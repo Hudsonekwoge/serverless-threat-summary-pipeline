@@ -41,7 +41,7 @@ This repo is intentionally structured to reflect the kind of work I’d like to 
 - Amazon Bedrock integration from Lambda
 - DX-focused: clear logging, local dev hints, and test scaffolding
 
-### 2. `cost-per-transaction-pipeline/` (skeleton)
+### 2. `[cost-per-transaction-pipeline](https://github.com/Hudsonekwoge/serverless-threat-summary-pipeline/tree/main/cost-per-transaction-pipeline)` (skeleton)
 
 > Uses CloudWatch Logs + Lambda + Glue to compute cost-per-transaction metrics for database workloads.
 
