@@ -1,0 +1,139 @@
+---
+
+## 3. `serverless-threat-summary-pipeline/` – publish-ready Serverless project
+
+### 3.1 `serverless.yml`
+
+Create `serverless-threat-summary-pipeline/serverless.yml`:
+
+```yaml
+service: serverless-threat-summary-pipeline
+frameworkVersion: '3'
+
+provider:
+  name: aws
+  runtime: nodejs20.x
+  region: eu-west-1
+  stage: dev
+  memorySize: 256
+  timeout: 30
+  iam:
+    role:
+      statements:
+        # Allow router Lambda to start Step Functions execution
+        - Effect: Allow
+          Action:
+            - states:StartExecution
+          Resource:
+            - !Ref ThreatSummaryStateMachine
+        # Allow summarizer Lambda to call Bedrock and publish to SNS
+        - Effect: Allow
+          Action:
+            - bedrock:InvokeModel
+            - bedrock:InvokeModelWithResponseStream
+          Resource: "*"
+        - Effect: Allow
+          Action:
+            - sns:Publish
+          Resource:
+            - !Ref ThreatSummaryTopic
+
+functions:
+  guarddutyRouter:
+    handler: src/handlers/guarddutyRouter.handler
+    description: Receives GuardDuty findings from EventBridge and starts Step Functions executions.
+    environment:
+      STATE_MACHINE_ARN: !Ref ThreatSummaryStateMachine
+    events:
+      - eventBridge:
+          pattern:
+            source:
+              - aws.guardduty
+            detail-type:
+              - GuardDuty Finding
+            detail:
+              severity:
+                - numeric:
+                    gte: 7
+
+  bedrockSummarizer:
+    handler: src/handlers/bedrockSummarizer.handler
+    description: Uses Amazon Bedrock to summarise GuardDuty findings and publishes to SNS.
+    environment:
+      SNS_TOPIC_ARN: !Ref ThreatSummaryTopic
+      BEDROCK_MODEL_ID: "anthropic.claude-3-sonnet-20240229-v1:0" # adjust as needed
+      AWS_REGION: ${self:provider.region}
+
+plugins:
+  - serverless-step-functions
+
+stepFunctions:
+  stateMachines:
+    threatSummaryWorkflow:
+      name: ${self:service}-${self:provider.stage}-threat-summary-workflow
+      definition:
+        Comment: "Summarise GuardDuty finding with Bedrock and email via SNS"
+        StartAt: SummariseFinding
+        States:
+          SummariseFinding:
+            Type: Task
+            Resource:
+              Fn::GetAtt: [BedrockSummarizerLambdaFunction, Arn]
+            End: true
+
+resources:
+  Resources:
+    ThreatSummaryTopic:
+      Type: AWS::SNS::Topic
+      Properties:
+        TopicName: ${self:service}-${self:provider.stage}-threat-summary
+
+    ThreatSummaryStateMachine:
+      Type: AWS::StepFunctions::StateMachine
+      Properties:
+        StateMachineName: ${self:service}-${self:provider.stage}-threat-summary-sm
+        RoleArn:
+          Fn::GetAtt: [ThreatSummaryStateMachineRole, Arn]
+        DefinitionString:
+          Fn::Sub: |
+            {
+              "Comment": "Summarise GuardDuty finding with Bedrock and email via SNS",
+              "StartAt": "SummariseFinding",
+              "States": {
+                "SummariseFinding": {
+                  "Type": "Task",
+                  "Resource": "${BedrockSummarizerLambdaArn}",
+                  "End": true
+                }
+              }
+            }
+        DefinitionSubstitutions:
+          BedrockSummarizerLambdaArn:
+            Fn::GetAtt: [BedrockSummarizerLambdaFunction, Arn]
+
+    ThreatSummaryStateMachineRole:
+      Type: AWS::IAM::Role
+      Properties:
+        AssumeRolePolicyDocument:
+          Version: "2012-10-17"
+          Statement:
+            - Effect: Allow
+              Principal:
+                Service:
+                  - states.amazonaws.com
+              Action:
+                - sts:AssumeRole
+        Policies:
+          - PolicyName: threat-summary-sm-policy
+            PolicyDocument:
+              Version: "2012-10-17"
+              Statement:
+                - Effect: Allow
+                  Action:
+                    - lambda:InvokeFunction
+                  Resource:
+                    - Fn::GetAtt: [BedrockSummarizerLambdaFunction, Arn]
+
+custom:
+  # room for future config (e.g. alarms, log retention)
+  logRetentionInDays: 14
