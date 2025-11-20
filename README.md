@@ -50,15 +50,15 @@ This repo is intentionally structured to reflect the kind of work I’d like to 
 - Pattern for cost observability
 - Good candidate for CloudWatch Logs Insights + ETL
 
-### 3. [cost-per-transaction-pipeline](./devops-utility-lambdas)
+### 3. [DevOps Utility Lambdas](./devops-utility-lambdas)
 
 > Small, focused Lambdas that automate operational work (tag enforcement, drift detection, notifications).
 
-### 4. `cli-tools/` (skeleton)
+### 4. [CLI Tools](./cli-tools)
 
 > CLI utilities (Node.js/TypeScript) to improve workflows around IAM policies, log queries, and project bootstrapping.
 
-### 5. `iac-examples/` (skeleton)
+### 5. [IAC Examples](./iac-examples)
 
 > Shows the same simple stack expressed in **Serverless Framework**, **CloudFormation**, **Terraform**, or **CDK**.
 
